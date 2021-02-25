@@ -16,8 +16,8 @@ class Street:
         car.ttl = self.time_for_a_car_to_travel
         self.cards_on_road.append(car)
 
-    def pop_car(self) -> Optional['Car']:
-        if self.cards_on_road:
+    def pop_waiting_car(self) -> Optional['Car']:
+        if self.cards_on_road and self.cards_on_road[0].ttl == 0:
             return self.cards_on_road.pop(0)
 
     def update(self):
@@ -52,11 +52,36 @@ class Intersection:
             self.schedule.append((in_street, t))
 
     def update(self, t):
+        # STRATEGY
+
         if self._possibilities:
-            self.acquire(random.choice(list(self._possibilities)), t)
+            # Random
+            # self.acquire(random.choice(list(self._possibilities)), t)
+            street_with_max_cars = None
+            max_cars = 0
+            for street_name in self._possibilities:
+                street = self.in_streets[street_name]
+                cars_on_the_street = len(street.cards_on_road)
+                if cars_on_the_street > max_cars:
+                    max_cars = cars_on_the_street
+                    street_with_max_cars = street_name
+
+            if street_with_max_cars:
+                self.acquire(street_with_max_cars, t=t)
+
+        # END STRATEGY
 
         for street in self.in_streets.values():
             street.update()
+
+        if self.active:
+            in_street = self.in_streets[self.active]
+            if in_street.cards_on_road:
+                car = in_street.pop_waiting_car()
+                if car:
+                    if car.street_schedule:
+                        out_street = car.street_schedule.pop(0)
+                        self.out_streets[out_street].add_car(car)
 
     def to_submission(self, duration) -> List[Tuple[str, int]]:
         start_times = []
@@ -83,12 +108,13 @@ def solve(duration: int,
 
     print('Starting simulations')
     for t in range(duration):
+        if t % 1000 == 0:
+            print(f't={t}')
         for intersection in intersections.values():
             intersection.update(t)
 
 
-def main():
-    filename = 'b.txt'
+def main(filename: str):
     print(f'Solving {filename}')
     with open(filename, encoding='utf-8') as f:
         duration, n_intersections, n_streets, n_cars, bonus_points = \
@@ -134,7 +160,7 @@ def main():
             car = Car(f.readline().split()[1:], 0)
 
             # Place car at the end of the street
-            streets[car.street_schedule[0]].add_car(car)
+            streets[car.street_schedule.pop(0)].add_car(car)
 
         solve(duration, n_cars, bonus_points, streets, intersections)
 
@@ -154,4 +180,10 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    # main('a.txt')
+    main('b.txt')
+    # main('c.txt')
+    # main('d.txt')
+    # main('e.txt')
+    # main('f.txt')
+
