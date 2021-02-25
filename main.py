@@ -84,6 +84,11 @@ class Intersection:
                         self.out_streets[out_street].add_car(car)
 
     def to_submission(self, duration) -> List[Tuple[str, int]]:
+        if not self.schedule:
+            # Fill not activated intersections
+            for t, s in enumerate(self.in_streets.keys()):
+                self.schedule.append((s, t))
+
         start_times = []
         for street, started_at in self.schedule:
             start_times.append(started_at)
