@@ -1,6 +1,9 @@
 from typing import *
 from dataclasses import dataclass
 import random
+import sys
+from collections import defaultdict
+import numpy as np
 
 
 @dataclass
@@ -51,23 +54,22 @@ class Intersection:
             self._possibilities.remove(in_street)
             self.schedule.append((in_street, t))
 
-    def update(self, t):
+    def update(self, t: int, duration: int):
         # STRATEGY
 
         if self._possibilities:
-            # Random
-            # self.acquire(random.choice(list(self._possibilities)), t)
-            street_with_max_cars = None
-            max_cars = 0
-            for street_name in self._possibilities:
-                street = self.in_streets[street_name]
-                cars_on_the_street = len(street.cards_on_road)
-                if cars_on_the_street > max_cars:
-                    max_cars = cars_on_the_street
-                    street_with_max_cars = street_name
+            if random.random() < 30.0 / duration:
+                street_with_max_cars = None
+                max_cars = 1
+                for street_name in self._possibilities:
+                    street = self.in_streets[street_name]
+                    cars_on_the_street = len(street.cards_on_road)
+                    if cars_on_the_street >= max_cars:
+                        max_cars = cars_on_the_street
+                        street_with_max_cars = street_name
 
-            if street_with_max_cars:
-                self.acquire(street_with_max_cars, t=t)
+                if street_with_max_cars:
+                    self.acquire(street_with_max_cars, t=t)
 
         # END STRATEGY
 
@@ -101,6 +103,45 @@ class Intersection:
 
         return fmt
 
+    def to_submission2(self, duration) -> List[Tuple[str, int]]:
+        out = []
+        input_streets = list(self.in_streets.values())
+
+        random.shuffle(input_streets)
+
+        total_used_times = 0
+        for street in input_streets:
+            used_times = STREETS_COUNTER[street.name]
+            if used_times > 0:
+                total_used_times += used_times
+
+        for street in input_streets:
+            used_times = STREETS_COUNTER[street.name]
+            if used_times > 0:
+                k = float(used_times / total_used_times)
+                d = int(1.5 + used_times // 550)
+
+                if d > 0:
+                    out.append((street.name, d))
+
+        """
+        random.shuffle(input_streets)
+        for street in input_streets:
+            if street.name in USED_STREETS:
+                street_duration = 1
+
+                if random.random() < 0.1:
+                    street_duration = 2
+
+                if street_duration > 0:
+                    out.append((street.name, street_duration))
+        """
+
+        if not out:
+            out.append((input_streets[0].name, 1))
+
+        return out
+
 
 def solve(duration: int,
           n_cars: int,
@@ -116,7 +157,11 @@ def solve(duration: int,
         if t % 1000 == 0:
             print(f't={t}')
         for intersection in intersections.values():
-            intersection.update(t)
+            intersection.update(t, duration)
+
+
+USED_STREETS = set()
+STREETS_COUNTER = defaultdict(int)
 
 
 def main(filename: str):
@@ -167,16 +212,29 @@ def main(filename: str):
             # Place car at the end of the street
             streets[car.street_schedule.pop(0)].add_car(car)
 
-        solve(duration, n_cars, bonus_points, streets, intersections)
+            for scheduled_street in car.street_schedule:
+                USED_STREETS.add(scheduled_street)
+                STREETS_COUNTER[scheduled_street] += 1
 
-    with open(f'{filename}.out.txt', 'w', encoding='utf-8') as f:
+        #solve(duration, n_cars, bonus_points, streets, intersections)
+
+    run_name = sys.argv[1]
+    with open(f'{run_name}.{filename}.out.txt', 'w', encoding='utf-8') as f:
+        """
+        submissions = []    
+        for intersection in intersections.values():
+            intersection_submission = intersection.to_submission2(duration=duration)
+            if intersection_submission:
+                submissions.append(intersection_submission)
+        """
+
         f.write(str(len(intersections)))
         f.write('\n')
         for intersection in intersections.values():
             f.write(str(intersection.id))
             f.write('\n')
 
-            intersection_submission = intersection.to_submission(duration=duration)
+            intersection_submission = intersection.to_submission2(duration=duration)
             f.write(str(len(intersection_submission)))
             f.write('\n')
             for street_name, time in intersection_submission:
@@ -185,10 +243,9 @@ def main(filename: str):
 
 
 if __name__ == '__main__':
-    # main('a.txt')
+    main('a.txt')
     main('b.txt')
-    # main('c.txt')
-    # main('d.txt')
-    # main('e.txt')
-    # main('f.txt')
-
+    main('c.txt')
+    main('d.txt')
+    main('e.txt')
+    main('f.txt')
